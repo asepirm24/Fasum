@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fasum/screen/sign_in_screen.dart';
 import 'package:fasum/screen/add_post_screen.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,12 +22,107 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String? selectedCategory;
+
+  List<String> categories = [
+    'Jalan Rusak',
+    'Marka Pudar',
+    'Lampu Mati',
+    'Trotoar Rusak',
+    'Rambu Rusak',
+    'Jembatan Rusak',
+    'Sampah Menumpuk',
+    'Saluran Tersumbat',
+    'Sungai Tercemar',
+    'Pohon Tumbang',
+    'Taman Rusak',
+    'Fasilitas Rusak',
+    'Pipa Bocor',
+    'Vandalisme',
+    'Banjir',
+    'Lainnya',
+  ];
+
+  String formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+    if (diff.inSeconds < 60) {
+      return '${diff.inSeconds} secs ago';
+    } else if (diff.inMinutes < 60) {
+      return '${diff.inMinutes} mins ago';
+    } else if (diff.inHours < 24) {
+      return '${diff.inHours} hrs ago';
+    } else if (diff.inHours < 48) {
+      return ' 1 days ago';
+    } else {
+      return DateFormat('dd/MM/yyyy').format(dateTime);
+    }
+  }
+
+  Future<void> signOut() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const SignInScreen()),
+            (route) => false,
+    );
+  }
+
+  void _showCategoryFilter() async {
+    final result = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) {
+          return SafeArea(
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.75,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 24),
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.clear),
+                    title: const Text('Semua Kategori'),
+                    onTap: () => Navigator.pop(context, null),
+                  ),
+                  const Divider(),
+                  ...categories.map(
+                        (category) => ListTile(
+                      title: Text(category),
+                      trailing: selectedCategory == category
+                          ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
+                          : null,
+                      onTap: () => Navigator.pop(context, category),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+    );
+
+    if (result != null) {
+      setState(() {
+        selectedCategory = result;
+      });
+    } else {
+      setState(() {
+        selectedCategory = null;
+      });
+    }
+  }
+
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          "Fasum",
+          'Fasum',
           style: TextStyle(
             color: Colors.green[600],
             fontWeight: FontWeight.bold,
@@ -34,13 +130,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {}, // _showCategoryFilter,
+            onPressed: _showCategoryFilter,
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filter Kategori',
           ),
           IconButton(
             onPressed: () {
-              // signOut;
+              signOut();
             },
             icon: const Icon(Icons.logout),
           ),
@@ -65,24 +161,25 @@ class _HomeScreenState extends State<HomeScreen> {
               return selectedCategory == null ||
                   selectedCategory == category;
             }).toList();
+
             if (posts.isEmpty) {
               return const Center(
                 child: Text("Tidak ada laporan untuk kategori ini."),
               );
             }
             return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
               itemCount: posts.length,
               itemBuilder: (context, index) {
                 final data = posts[index].data();
                 final imageBase64 = data['image'];
                 final description = data['description'];
                 final createdAtStr = data['createdAt'];
-                final fullName = data['fullName'] ?? 'Anonim';
+                final fullname = data['fullname'] ?? 'Anonim';
                 final latitude = data['latitude'];
                 final longitude = data['longitude'];
                 final category = data['category'] ?? 'Lainnya';
                 final createdAt = DateTime.parse(createdAtStr);
+
                 String heroTag =
                     'fasum-image-${createdAt.millisecondsSinceEpoch}';
 
@@ -114,23 +211,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
+                        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                fullName,
+                                fullname,
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                createdAtStr,
+                                formatTime(createdAt),
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey,
@@ -145,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                        ),
+                        )
                       ],
                     ),
                   ),
@@ -153,7 +246,8 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             );
           },
-        ),      ),
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(
@@ -164,4 +258,5 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
 }
